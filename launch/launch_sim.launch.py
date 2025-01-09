@@ -7,6 +7,7 @@ from launch import LaunchDescription
 from launch.actions import IncludeLaunchDescription, DeclareLaunchArgument
 from launch.launch_description_sources import PythonLaunchDescriptionSource
 from launch.substitutions import LaunchConfiguration
+from launch_ros.substitutions import FindPackageShare
 from launch_ros.actions import Node
 
 
@@ -25,12 +26,24 @@ def generate_launch_description():
                 )]), launch_arguments={'use_sim_time': 'true'}.items()
     )
 
-    default_world = os.path.join(
-    get_package_share_directory(package_name),
-    'worlds',
-    'empty.world'
-    )    
+    # default_world = os.path.join(
+    # get_package_share_directory(package_name),
+    # 'worlds',
+    # 'empty.world'
+    # )    
+
+    # default_world = '/home/bavesh/geigerbot_project/dev_ws/src/geiger_bot/worlds/empty.world'
     
+    default_world = os.path.join(
+        FindPackageShare(package_name).find(package_name),
+        'worlds',
+        'empty.world'
+    )
+
+    # default_world = '/home/bavesh/geigerbot_project/dev_ws/src/geiger_bot/worlds/empty.world'
+
+    print(f"Testing world file path: {default_world}")  # Debugging output
+
     world = LaunchConfiguration('world')
 
     world_arg = DeclareLaunchArgument(
@@ -38,13 +51,26 @@ def generate_launch_description():
         default_value=default_world,
         description='World to load'
         )
+    
+
+    print(f"Resolved default world: {default_world}")
+    print(world_arg)
 
     # Include the Gazebo launch file, provided by the ros_gz_sim package
     gazebo = IncludeLaunchDescription(
-                PythonLaunchDescriptionSource([os.path.join(
-                    get_package_share_directory('ros_gz_sim'), 'launch', 'gz_sim.launch.py')]),
-                    launch_arguments={'gz_args': ['-r -v4 ', world], 'on_exit_shutdown': 'true'}.items()
-             )
+        PythonLaunchDescriptionSource(
+            [os.path.join(
+                FindPackageShare('ros_gz_sim').find('ros_gz_sim'), 'launch', 'gz_sim.launch.py')]
+        ),
+        launch_arguments={
+            'gz_args': ['-r -v4 ', world],
+            'on_exit_shutdown': 'true'
+        }.items()
+    )
+
+
+    print(f"FindPackageShare resolved path: {FindPackageShare(package_name).find(package_name)}")
+    print(f"Default world path: {default_world}")
     
     # Run the spawner node from the ros_gz_sim package. The entity name doesn't really matter if you only have a single robot.
     spawn_entity = Node(package='ros_gz_sim', executable='create',
@@ -54,11 +80,13 @@ def generate_launch_description():
                         output='screen')
 
 
+    print(f"Resolved world file: {world.describe()}")
+
 
     # Launch them all!
     return LaunchDescription([
         rsp,
-        gazebo,
         world_arg,
+        gazebo,
         spawn_entity,
     ])
